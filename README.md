@@ -2,6 +2,10 @@
 
 This project is a technical prototype developed for the **ServiceHive (Inflx)** ML Intern assignment. It implements a "Social-to-Lead" agentic workflow for **AutoStream**, a fictional video automation SaaS.
 
+## 📺 Demo Video
+[Watch the 2-minute demonstration on Google Drive](https://drive.google.com/file/d/1OFVuQr3r4boP6fjfI1SEIMtWA9-gaS8t/view?usp=sharing)
+*A demonstration of intent detection, RAG inquiry handling, and automated lead capture.*
+
 ## Setup
 1. **Clone the repository** and navigate to the directory.
 2. **Install dependencies**:
@@ -21,15 +25,13 @@ This project is a technical prototype developed for the **ServiceHive (Inflx)** 
    python app.py
    ```
    *Then open `frontend/index.html` in your browser.*
-   
-   ```
 
 ## Architecture (Technical Deep Dive)
 Unlike traditional linear chatbots, this system utilizes **LangGraph** to implement a cyclic state machine. The core architecture revolves around an `AgentState` object that persists across turns using a `MemorySaver` checkpointer. 
 
-The workflow starts with a **Classifier Node** (powered by Groq for sub-second inference) that re-evaluates the user's intent on every message. This prevents the agent from getting "stuck" in a specific loop. If the intent is an inquiry, the system routes to a **RAG Node** that performs keyword-based retrieval from a local `knowledge_base.json`, ensuring responses are grounded in product truth without the overhead of a vector database.
+The workflow starts with a **Classifier Node** (powered by Groq for sub-second inference) that re-evaluates the user's intent on every message. This prevents the agent from getting "stuck" in a specific loop. If the intent is an inquiry, the system routes to an **AI-Powered RAG Node** that performs contextual retrieval from a local `knowledge_base.json`, ensuring responses are grounded in product truth.
 
-For "High Intent" users, the agent enters a **Lead Collection Node** (powered by OpenRouter for high-reasoning extraction). This node uses greedy extraction to capture 'Name', 'Email', and 'Platform' from the context, but gracefully prompts for one missing field at a time if the data is incomplete. Only once the state is fully populated does the graph transition to the **Lead Capture Node**, which executes the `mock_lead_capture` tool—a pattern that mirrors real-world CRM integrations.
+For "High Intent" users, the agent enters a **Lead Collection Node** (powered by OpenRouter for high-reasoning extraction). This node captures 'Name', 'Email', and 'Platform' from the context, prompting for missing fields one-by-one. Only once the state is fully populated does the graph transition to the **Lead Capture Node**, which executes the `mock_lead_capture` tool—a pattern that mirrors real-world CRM integrations.
 
 ## WhatsApp Deployment via Webhooks
 To deploy this agent to WhatsApp for production use, follow this technical blueprint:
@@ -41,3 +43,10 @@ To deploy this agent to WhatsApp for production use, follow this technical bluep
     *   Initialize the LangGraph agent with a `thread_id` mapped to the `sender_id`. This ensures that state (collected name/email) is isolated per user and persists across days.
 4.  **Backend Logic**: Call `graph.invoke()` with the user's message. Use a persistent checkpointer (like Redis or PostgreSQL) instead of the in-memory `MemorySaver` to ensure state is not lost on server restarts.
 5.  **Response Delivery**: Send the agent's response back to the user via a `POST` request to the Meta Cloud API `/messages` endpoint using the `sender_id`.
+
+## 🛠️ Tech Stack
+- **LangGraph**: Orchestration & Cyclic State Management
+- **Groq (Llama 3.3)**: Intent Classification (Ultra-low latency inference)
+- **OpenRouter (Claude 3 Haiku)**: High-reasoning Information Extraction
+- **FastAPI**: Production-grade asynchronous Python API
+- **Vanilla HTML5/CSS3/JS**: Premium Light-Themed Lead Dashboard

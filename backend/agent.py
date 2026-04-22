@@ -21,7 +21,6 @@ def get_message_content(msg) -> str:
         return msg[1]
     return str(msg)
 
-# Define Agent State
 class AgentState(TypedDict):
     messages: Annotated[List[BaseMessage], operator.add]
     intent: str
@@ -30,12 +29,10 @@ class AgentState(TypedDict):
     collected_platform: str
     lead_captured: bool
 
-# --- CONFIGURATION ---
 MODEL_GROQ_CLASSIFIER = "llama-3.3-70b-versatile"
 MODEL_OPENROUTER_EXTRACTOR = "anthropic/claude-3-haiku"
 OPENROUTER_BASE_URL = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
 
-# Initialize LLMs
 groq_llm = ChatGroq(
     model=MODEL_GROQ_CLASSIFIER,
     temperature=0
@@ -48,14 +45,10 @@ openrouter_llm = ChatOpenAI(
     temperature=0
 )
 
-# --- NODES ---
 
 def classify_intent_node(state: AgentState):
     """Classifies user intent every turn with context awareness."""
     last_message = get_message_content(state["messages"][-1])
-    
-    # Context Check: If we've already started collecting info, stay in high_intent mode
-    # unless the user is clearly asking a new question.
     is_collecting = state.get("collected_name") or state.get("collected_email") or state.get("collected_platform")
     is_high_intent_started = state.get("intent") == "high_intent"
 
@@ -75,11 +68,9 @@ def classify_intent_node(state: AgentState):
     
     intent = response.content.strip().lower()
     
-    # Override logic: If we are in the middle of collection and it's not a clear inquiry, keep it as high_intent
     if (is_collecting or is_high_intent_started) and "inquiry" not in intent and "greeting" not in intent:
         intent = "high_intent"
     
-    # Sanitize
     if "greeting" in intent: intent = "greeting"
     elif "inquiry" in intent: intent = "inquiry"
     else: intent = "high_intent"
@@ -96,9 +87,6 @@ def greeting_node(state: AgentState):
 def rag_node(state: AgentState):
     """Retrieves info using LLM-powered context awareness."""
     kb_context = get_knowledge_base_context()
-    
-    # We pass the messages to the LLM so it knows the conversation context
-    # (e.g., if the user says "how about pro", it knows we are talking about refunds)
     system_prompt = (
         "You are the AutoStream Assistant. Use the following Knowledge Base to answer the user's question.\n"
         "If the user's question is vague (e.g. 'how about pro?'), use the conversation history to understand the context.\n"
@@ -107,10 +95,9 @@ def rag_node(state: AgentState):
         "Answer concisely and professionally."
     )
     
-    # Use Groq for fast, intelligent RAG response
     response = groq_llm.invoke([
         {"role": "system", "content": system_prompt},
-        *state["messages"] # This passes the entire history!
+        *state["messages"]
     ])
     
     print(f"[SYSTEM] RAG RETRIEVAL: Answered based on knowledge base context.")
@@ -121,8 +108,6 @@ def rag_node(state: AgentState):
 def lead_collection_node(state: AgentState):
     """Extracts information and asks for missing fields."""
     last_message = get_message_content(state["messages"][-1])
-    
-    # 1. Extraction Logic (using OpenRouter)
     extraction_prompt = (
         f"Extract information from this message: '{last_message}'.\n"
         "Return a JSON-like string with 'name', 'email', 'platform'.\n"
@@ -132,15 +117,12 @@ def lead_collection_node(state: AgentState):
     
     extraction = openrouter_llm.invoke(extraction_prompt).content
     
-    # 2. Robust JSON Extraction
     import re
     import json
     
-    # Extract JSON content from within curly braces (handles markdown or extra text)
     match = re.search(r'\{.*\}', extraction, re.DOTALL)
     if match:
         try:
-            # Clean common LLM formatting issues
             json_str = match.group(0).replace("'", "\"")
             extracted_data = json.loads(json_str)
         except:
@@ -148,7 +130,6 @@ def lead_collection_node(state: AgentState):
     else:
         extracted_data = {"name": None, "email": None, "platform": None}
 
-    # Update state with extracted fields if they are not already filled
     new_data = {}
     if extracted_data.get("name") and not state.get("collected_name"):
         new_data["collected_name"] = extracted_data["name"]
@@ -162,12 +143,10 @@ def lead_collection_node(state: AgentState):
         new_data["collected_platform"] = extracted_data["platform"]
         print(f"[SYSTEM] DATA CAPTURED: Platform={extracted_data['platform']}")
 
-    # Merge current data for logic
     name = new_data.get("collected_name") or state.get("collected_name")
     email = new_data.get("collected_email") or state.get("collected_email")
     platform = new_data.get("collected_platform") or state.get("collected_platform")
 
-    # 2. Response Logic
     if not name:
         response = "I'd love to help you get started! To get you set up, what is your name?"
     elif not email:
@@ -195,18 +174,15 @@ def lead_capture_node(state: AgentState):
         "lead_captured": True
     }
 
-# --- EDGES / ROUTING ---
 
 def route_after_classification(state: AgentState):
     return state["intent"]
 
 def route_after_collection(state: AgentState):
-    # Check if all fields are filled
     if state.get("collected_name") and state.get("collected_email") and state.get("collected_platform"):
         return "capture"
     return "end"
 
-# Build Graph
 builder = StateGraph(AgentState)
 
 builder.add_node("classify", classify_intent_node)
@@ -240,6 +216,5 @@ builder.add_edge("greeting", END)
 builder.add_edge("rag", END)
 builder.add_edge("capture", END)
 
-# Compile
 memory = MemorySaver()
 graph = builder.compile(checkpointer=memory)

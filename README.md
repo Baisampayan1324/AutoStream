@@ -2,10 +2,6 @@
 
 This project is a technical prototype developed for the **ServiceHive (Inflx)** ML Intern assignment. It implements a "Social-to-Lead" agentic workflow for **AutoStream**, a fictional video automation SaaS.
 
-## 📺 Demo Video
-[Watch the 2-minute demonstration on Google Drive](https://drive.google.com/file/d/1OFVuQr3r4boP6fjfI1SEIMtWA9-gaS8t/view?usp=sharing)
-*A demonstration of intent detection, RAG inquiry handling, and automated lead capture.*
-
 ## Setup
 1. **Clone the repository** and navigate to the directory.
 2. **Install dependencies**:

@@ -21,11 +21,7 @@ This project is a technical prototype developed for the **ServiceHive (Inflx)** 
    python app.py
    ```
    *Then open `frontend/index.html` in your browser.*
-
-5. **Run Terminal Test (Optional)**:
-   ```bash
-   cd backend
-   python cli_test.py
+   
    ```
 
 ## Architecture (Technical Deep Dive)
